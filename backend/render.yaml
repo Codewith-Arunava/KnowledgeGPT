@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: knowledgegpt-backend
+    env: python
+    buildCommand: "pip install -r requirements.txt && alembic upgrade head"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: DATABASE_URL
+        value: "sqlite+aiosqlite:///./knowledgegpt.db"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: "HS256"
+      - key: FRONTEND_URL
+        # Replace this with your actual Vercel URL once deployed
+        value: "https://your-frontend-project.vercel.app"
+      - key: CORS_ORIGINS
+        # Allow requests from your Vercel frontend URL
+        value: "https://your-frontend-project.vercel.app,http://localhost:5173"
