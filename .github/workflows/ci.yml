@@ -1,0 +1,109 @@
+name: CI — Test & Lint
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ─── Backend Tests ────────────────────────────────────────────────────────
+  backend-test:
+    name: Backend (Python 3.12)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: knowledgegpt_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      chromadb:
+        image: chromadb/chroma:latest
+        ports:
+          - 8001:8001
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@localhost:5432/knowledgegpt_test
+      JWT_SECRET_KEY: ci-test-secret-key-32-chars-minimum
+      OPENAI_API_KEY: ""
+      GOOGLE_API_KEY: ""
+      CHROMA_HOST: localhost
+      CHROMA_PORT: 8001
+      APP_ENV: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        working-directory: backend
+        run: |
+          pytest tests/ -v \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --tb=short \
+            -x
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
+  # ─── Frontend Type Check & Lint ───────────────────────────────────────────
+  frontend-check:
+    name: Frontend (Node 20 / TypeScript)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build (verify bundle compiles)
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ""
