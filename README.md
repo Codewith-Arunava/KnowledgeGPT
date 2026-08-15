@@ -3,7 +3,7 @@
 > A portfolio-quality AI SaaS platform demonstrating LLM Engineering, RAG, Agentic AI, LangGraph, LlamaIndex, FastAPI, React, PostgreSQL, and ChromaDB.
 
 --- 
-
+ 
 ## 🏗️ Architecture 
  
 ```
